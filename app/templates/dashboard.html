@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_chip, consent_chip, msg_chip %}
+{% block title %}Overview{% endblock %}
+{% block body %}
+<div class="top">
+  <div><h1>Overview</h1><div class="sub">Who is coming back, who is slipping, and who is worth a message.</div></div>
+  <div class="actions">
+    <form method="get" class="actions"><label class="small muted" for="period" style="margin:0">Period</label>
+      <select id="period" name="period" onchange="this.form.submit()" style="width:auto">
+        {% for p,l in [(30,'Last 30 days'),(90,'Last 90 days'),(365,'Last 12 months')] %}<option value="{{p}}" {{ 'selected' if p==period }}>{{l}}</option>{% endfor %}
+      </select></form>
+    <a class="btn primary" href="/campaigns/new">Create offer</a>
+  </div>
+</div>
+
+<div class="banner {{ 'info' if 'Demo' not in data_source else 'sim' }}">
+  <span class="dot"></span><span>Data source: <b>{{ data_source }}</b>{% if data_updated %} · last update {{ data_updated|dt }}{% endif %}</span>
+  {% if 'Demo' in data_source %}<span class="muted">· All customers and bills are fictional. Messages are simulated.</span>{% endif %}
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="l">Customers</div><div class="v">{{ d.total_customers }}</div><div class="s">{{ d.new_customers }} new in last {{ d.period_days }} days</div></div>
+  <div class="kpi"><div class="l"><span class="help" title="Customers with 2+ distinct visit dates ÷ customers with at least 1 purchase">Repeat rate</span></div><div class="v">{{ '%.0f'|format(d.repeat_rate) }}%</div><div class="s">{{ d.repeat_n }} of {{ d.buyer_n }} buyers</div></div>
+  <div class="kpi"><div class="l">Tracked sales</div><div class="v">{{ d.total_sales|inr }}</div><div class="s">{{ d.period_sales|inr }} in last {{ d.period_days }}d</div></div>
+  <div class="kpi"><div class="l">Average bill</div><div class="v">{{ d.avg_bill|inr }}</div><div class="s">{{ d.bill_count }} bills · {{ d.visit_count }} visits</div></div>
+  <div class="kpi"><div class="l">VIP customers</div><div class="v">{{ d.vip_count }}</div><div class="s">≥ {{ settings.vip_min_spend|float|inr }} spend, 3+ visits</div></div>
+  <div class="kpi warm"><div class="l">Due soon</div><div class="v">{{ d.due_soon }}</div><div class="s">1.1x–1.5x own interval</div></div>
+  <div class="kpi hot"><div class="l">Overdue regulars</div><div class="v">{{ d.overdue }}</div><div class="s">≥ 1.5x own interval</div></div>
+  <div class="kpi"><div class="l">Campaigns</div><div class="v">{{ d.campaigns }}</div><div class="s">{{ d.msgs.get('SIMULATED',0) }} simulated · {{ d.msgs.get('SUBMITTED',0)+d.msgs.get('DELIVERED',0)+d.msgs.get('READ',0) }} live submitted</div></div>
+  <div class="kpi"><div class="l">Observed returns</div><div class="v">{{ observed }}</div><div class="s">bought within {{ settings.attribution_days }}d after a campaign*</div></div>
+</div>
+
+<div class="grid g21">
+  <section class="card" aria-labelledby="pq">
+    <div class="top" style="margin-bottom:4px"><div><h2 id="pq">Priority action list</h2>
+      <div class="small muted">Highest-value customers who are due, overdue or lapsed — with the reason.</div></div>
+      <a class="btn sm" href="/campaigns/new?segment=offer_eligible">Target all eligible</a></div>
+    <div class="queue">
+    {% for q in queue %}
+      <div class="item">
+        <div class="score {{ 'hi' if q.priority_score>=60 else 'mid' if q.priority_score>=40 }}" title="Priority score (0–100)">{{ q.priority_score }}</div>
+        <div>
+          <a href="/customers/{{ q.id }}"><b>{{ q.name }}</b></a> {{ status_chip(q.status) }}
+          {% if q.vip %}<span class="chip accent">VIP</span>{% endif %}
+          {% if not q.contactable %}<span class="chip">Not messageable: {{ q.exclusions|join(', ') }}</span>{% endif %}
+          <div class="reason">{{ q.reason }}</div>
+        </div>
+        <div class="act"><a class="btn sm" href="/customers/{{ q.id }}">Open</a></div>
+      </div>
+    {% else %}<div class="empty">Nobody needs attention right now.</div>{% endfor %}
+    </div>
+  </section>
+
+  <div>
+    <section class="card"><h2>Customer health</h2>
+      <div class="mix" role="img" aria-label="Customers by status">{% for m in mix if m.n %}<i class="c-{{ m.key|lower }}" style="width:{{ m.pct }}%"></i>{% endfor %}</div>
+      <div class="legend">{% for m in mix %}<span><i class="sw c-{{ m.key|lower }}"></i>{{ m.label }}<b>{{ m.n }}</b></span>{% endfor %}</div>
+    </section>
+    <section class="card"><h2>Sales by month</h2>
+      <div class="bars" role="img" aria-label="Sales by month">{% for m in months %}<div class="b"><em>{{ (m.value/1000)|round|int }}k</em><i style="height:{{ m.h }}%"></i><span>{{ m.label }}</span></div>{% endfor %}</div>
+      <div class="tiny muted">Net of returns, in ₹ thousands. Matched customers only.</div>
+    </section>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:16px">
+  <section class="card"><h2>Segments</h2>
+    <table class="tbl"><tbody>
+    {% for key,label,rule in SEGMENTS %}<tr><td><a href="/customers?segment={{ key }}">{{ label }}</a></td><td class="r"><b>{{ counts[key] }}</b></td></tr>{% endfor %}
+    </tbody></table>
+    <div class="small" style="margin-top:8px"><a href="/segments">Segment rules and eligible counts →</a></div>
+  </section>
+  <div>
+    <section class="card"><h2>Recent campaigns</h2>
+      {% for c in recent_c %}
+      <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <a href="/campaigns/{{ c.id }}"><b>{{ c.name }}</b></a>
+        <span class="chip {{ 'warn' if c.mode=='SIMULATION' else 'info' }}">{{ 'Simulation' if c.mode=='SIMULATION' else 'Live' }}</span>
+        <div class="small muted">{{ c.est_recipients }} recipients · {{ c.status|replace('_',' ')|title }} · observed returns after campaign: <b>{{ attr[c.id].returns }}</b> ({{ attr[c.id].sales|inr }})</div>
+      </div>{% else %}<div class="empty">No campaigns yet.</div>{% endfor %}
+      <div class="tiny muted" style="margin-top:8px">*Observed returns are purchases after a campaign, not proof the campaign caused them.</div>
+    </section>
+    <section class="card"><h2>Recent activity</h2>
+      <ul class="timeline">{% for a in activity %}<li>{{ a.text }}<time>{{ a.ts|dt }}</time></li>{% else %}<li class="muted">Nothing yet.</li>{% endfor %}</ul>
+    </section>
+  </div>
+</div>
+{% if d.unmatched or d.possible_dups %}<div class="banner info" style="margin-top:16px"><span class="dot"></span>
+  <span>{{ d.unmatched }} bill(s) without a customer match and {{ d.possible_dups }} possible duplicate(s) need review. <a href="/import">Review →</a></span></div>{% endif %}
+{% endblock %}

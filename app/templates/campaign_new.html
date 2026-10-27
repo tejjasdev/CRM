@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box, consent_chip %}
+{% block title %}New campaign{% endblock %}
+{% block body %}
+{% set aud = prev.aud %}
+<div class="top"><div><h1>New campaign</h1><div class="sub">Pick an audience, write the offer, check who is in and what it costs — then confirm.</div></div></div>
+{{ error_box(errors) }}
+<form method="post" id="cf">
+<div class="grid g12" style="align-items:start">
+  <div>
+    <section class="card"><h2>1 · Audience</h2>
+      <div class="field"><label for="segment">Segment</label>
+        <select id="segment" name="segment">{% for key,label,rule in SEGMENTS %}<option value="{{ key }}" {{ 'selected' if key==form.segment }}>{{ label }}</option>{% endfor %}</select>
+        <div class="hint">{% for key,label,rule in SEGMENTS if key==form.segment %}{{ rule }}{% endfor %}</div></div>
+      <div class="row">
+        <div class="field"><label for="max_recipients">Max recipients</label><input id="max_recipients" name="max_recipients" type="number" min="1" value="{{ form.max_recipients }}" placeholder="No limit"><div class="hint">Highest-priority customers are chosen first.</div></div>
+        <div class="field"><label for="budget_cap">Budget cap (₹, incl. tax)</label><input id="budget_cap" name="budget_cap" type="number" min="0" step="0.01" value="{{ form.budget_cap }}" placeholder="No cap"></div>
+      </div>
+    </section>
+    <section class="card"><h2>2 · Offer &amp; message</h2>
+      <div class="field"><label for="name">Campaign name *</label><input id="name" name="name" type="text" value="{{ form.name }}" placeholder="e.g. Diwali win-back"></div>
+      <div class="row">
+        <div class="field"><label for="offer">Offer</label><input id="offer" name="offer" type="text" value="{{ form.offer }}"></div>
+        <div class="field"><label for="offer_code">Offer code</label><input id="offer_code" name="offer_code" type="text" value="{{ form.offer_code }}"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="expiry">Expiry</label><input id="expiry" name="expiry" type="date" value="{{ form.expiry }}"></div>
+        <div class="field"><label for="min_bill">Minimum bill (₹, optional)</label><input id="min_bill" name="min_bill" type="number" min="0" value="{{ form.min_bill }}"></div>
+      </div>
+      <div class="field"><label for="template">Message template</label><textarea id="template" name="template">{{ form.template }}</textarea>
+        <div class="hint">Placeholders: {% for p in ALLOWED_PLACEHOLDERS %}<code>{{ '{{' }}{{ p }}{{ '}}' }}</code> {% endfor %}</div>
+        {% if prev.unknown %}<div class="small" style="color:var(--bad)">Unknown placeholder: {{ prev.unknown|join(', ') }}</div>{% endif %}</div>
+    </section>
+    <section class="card"><h2>3 · Send mode &amp; timing</h2>
+      <div class="field"><label class="check"><input type="radio" name="mode" value="SIMULATION" {{ 'checked' if form.mode!='LIVE_META' }}><span><b>Simulation</b> — records the campaign and per-customer history. <b>Nothing is sent.</b></span></label></div>
+      <div class="field"><label class="check"><input type="radio" name="mode" value="LIVE_META" {{ 'checked' if form.mode=='LIVE_META' }} {{ 'disabled' if not live_ready.ready }}>
+        <span><b>Live — Meta WhatsApp Business Platform</b> {% if not live_ready.ready %}<span class="chip bad">Unavailable</span><div class="hint">Missing: {{ live_ready.missing|join(', ') }}. Configure in <code>.env</code> (never in this UI).</div>{% else %}<span class="chip ok">Configured</span>{% endif %}</span></label></div>
+      {% if live_ready.ready %}
+      <div class="row">
+        <div class="field"><label for="meta_template_name">Approved template name</label><input id="meta_template_name" name="meta_template_name" type="text" value="{{ form.meta_template_name }}"></div>
+        <div class="field"><label for="meta_language">Language code</label><input id="meta_language" name="meta_language" type="text" value="{{ form.meta_language }}"></div>
+      </div>
+      <div class="field"><label for="meta_params">Template variables, in order</label><input id="meta_params" name="meta_params" type="text" value="{{ form.meta_params }}"><div class="hint">Comma-separated placeholder names mapped to {{ '{{1}}' }}, {{ '{{2}}' }}… of the approved template. Promotional messages must use an approved marketing template; the text above is only a preview.</div></div>
+      <label class="check"><input type="checkbox" name="confirm_live" {{ 'checked' if form.confirm_live }}><span>I confirm this audience ({{ aud.included|length }} recipients), template and estimated cost ({{ aud.cost.total|inr2 }}) and that I verified the current Meta rate.</span></label>
+      {% endif %}
+      <div class="field" style="margin-top:12px"><label for="send_when">When</label>
+        <select id="send_when" name="send_when" onchange="document.getElementById('sched').style.display=this.value=='later'?'block':'none'">
+          <option value="now" {{ 'selected' if form.send_when!='later' }}>As soon as I confirm</option><option value="later" {{ 'selected' if form.send_when=='later' }}>Schedule for later</option></select></div>
+      <div class="field" id="sched" style="display:{{ 'block' if form.send_when=='later' else 'none' }}"><label for="scheduled_at">Date &amp; time</label><input id="scheduled_at" name="scheduled_at" type="datetime-local" value="{{ form.scheduled_at }}">
+        <div class="hint">Scheduled campaigns only run while this app is running (checked every ~20 s). If it is stopped, they run on the next start — never twice. Not a 24/7 service.</div></div>
+    </section>
+  </div>
+
+  <div style="position:sticky;top:12px">
+    <section class="card"><h2>Review</h2>
+      <div class="banner {{ 'sim' if form.mode!='LIVE_META' else 'info' }}" style="margin-bottom:12px"><span class="dot"></span>{{ 'SIMULATION — no real messages will be sent' if form.mode!='LIVE_META' else 'LIVE — messages go to real people via Meta' }}</div>
+      <div class="stats">
+        <div class="stat"><div class="l">In segment</div><div class="v">{{ aud.segment_total }}</div></div>
+        <div class="stat"><div class="l">Will receive</div><div class="v" style="color:var(--accent)">{{ aud.included|length }}</div></div>
+        <div class="stat"><div class="l">Excluded</div><div class="v">{{ aud.excluded|length }}</div></div>
+        <div class="stat"><div class="l">Est. total cost</div><div class="v">{{ aud.cost.total|inr2 }}</div></div>
+      </div>
+      <div class="small muted" style="margin-top:8px">{{ aud.included|length }} × {{ aud.rate|inr2 }}{% if aud.markup %} + {{ aud.markup|inr2 }} markup{% endif %} = {{ (aud.cost.base+aud.cost.markup)|inr2 }} + GST {{ aud.gst|round|int }}% {{ aud.cost.gst|inr2 }}.
+        Planning assumption{% if settings.rate_date %} as of {{ settings.rate_date }}{% endif %} — <b>verify the current Meta/provider tariff before live sending.</b>
+        {% if prev.monthly_cap %}Monthly cap {{ prev.monthly_cap|inr }}; planned so far {{ prev.month_spend|inr2 }}.{% endif %}</div>
+      {% if aud.reason_counts %}<h3 style="margin-top:12px">Why people are excluded</h3>
+      <ul class="small" style="margin:0 0 0 18px;padding:0">{% for r,n in aud.reason_counts.items() %}<li>{{ r }}: <b>{{ n }}</b></li>{% endfor %}</ul>{% endif %}
+    </section>
+    <section class="card"><h2>Message preview <span class="muted small">— real customers</span></h2>
+      {% for s in prev.samples %}<div class="wa"><div class="who">To {{ s.c.name }} · {{ s.c.phone|phone }} · score {{ s.c.priority_score }}</div><div class="bubble">{{ s.text }}</div><div class="meta">preview</div></div>
+      {% else %}<div class="empty">No eligible recipients for this audience.</div>{% endfor %}
+      {% if aud.included|length>5 %}<div class="tiny muted">Showing 5 of {{ aud.included|length }} recipients.</div>{% endif %}
+    </section>
+    <section class="card"><h2>Recipients &amp; exclusions</h2>
+      <details><summary class="small" style="cursor:pointer;font-weight:600">Included ({{ aud.included|length }})</summary>
+        <table class="tbl small"><tbody>{% for s in aud.included %}<tr><td><a href="/customers/{{ s.id }}">{{ s.name }}</a></td><td class="r">{{ s.priority_score }}</td></tr>{% endfor %}</tbody></table></details>
+      <details style="margin-top:8px"><summary class="small" style="cursor:pointer;font-weight:600">Excluded ({{ aud.excluded|length }})</summary>
+        <table class="tbl small"><tbody>{% for s,why in prev.excluded_rows %}<tr><td><a href="/customers/{{ s.id }}">{{ s.name }}</a></td><td class="muted">{{ why|join('; ') }}</td></tr>{% endfor %}</tbody></table></details>
+    </section>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" type="submit" name="action" value="preview">Update preview</button>
+      <button class="btn primary" type="submit" name="action" value="create" {{ 'disabled' if not aud.included }}
+        onclick="return confirm('{{ 'Run SIMULATION for ' ~ aud.included|length ~ ' customers? Nothing will be sent.' if form.mode!='LIVE_META' else 'Send LIVE messages to ' ~ aud.included|length ~ ' real customers (est. ' ~ aud.cost.total ~ ' INR)?' }}')">
+        {{ 'Run simulation' if form.mode!='LIVE_META' else 'Confirm live send' }}{{ ' (schedule)' if form.send_when=='later' }}</button>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}

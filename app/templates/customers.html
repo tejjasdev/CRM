@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_chip, consent_chip, ratio %}
+{% block title %}Customers{% endblock %}
+{% block body %}
+<div class="top">
+  <div><h1>Customers</h1><div class="sub">{{ total }} shown · search by name or phone, filter by segment.</div></div>
+  <div class="actions"><a class="btn" href="/transactions/new">Add bill</a><a class="btn primary" href="/customers/new">Add customer</a></div>
+</div>
+<form method="get" class="card filters" role="search">
+  <div class="field" style="flex:2"><label for="q">Search</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Name or phone number"></div>
+  <div class="field"><label for="segment">Segment</label>
+    <select id="segment" name="segment">{% for key,label,rule in SEGMENTS %}<option value="{{ key }}" {{ 'selected' if key==segment }}>{{ label }} ({{ counts[key] }})</option>{% endfor %}</select></div>
+  <div class="field"><label for="sort">Sort by</label>
+    <select id="sort" name="sort">{% for k,l in [('priority','Priority'),('spend','Lifetime spend'),('last_visit','Most recent visit'),('name','Name')] %}<option value="{{k}}" {{ 'selected' if k==sort }}>{{l}}</option>{% endfor %}</select></div>
+  <button class="btn primary" type="submit">Apply</button>
+  {% if q or segment!='all' %}<a class="btn" href="/customers">Clear</a>{% endif %}
+</form>
+<div class="small muted" style="margin:-4px 0 12px"><b>{{ SEG_LABEL[segment] }}:</b> {% for key,label,rule in SEGMENTS if key==segment %}{{ rule }}{% endfor %}
+  <a href="/campaigns/new?segment={{ segment }}" style="margin-left:8px">Create an offer for this segment →</a></div>
+<div class="card scroll" style="padding:6px 8px">
+<table class="tbl">
+  <thead><tr><th>Customer</th><th>Status</th><th class="r">Visits / bills</th><th class="r">Lifetime spend</th><th class="r">Last visit</th><th class="r">Usual gap</th><th class="r">Ratio</th><th class="r">Priority</th></tr></thead>
+  <tbody>
+  {% for x in rows %}
+  <tr>
+    <td><a href="/customers/{{ x.id }}"><b>{{ x.name }}</b></a>{% if x.vip %} <span class="chip accent">VIP</span>{% endif %}<br><span class="small muted">{{ x.phone|phone }} · {{ consent_chip(x.consent) }}</span></td>
+    <td>{{ status_chip(x.status) }}{% if x.declining %}<br><span class="chip warn" style="margin-top:3px">Declining</span>{% endif %}<br><span class="tiny muted">{{ x.confidence }}</span></td>
+    <td class="r">{{ x.visit_count }} / {{ x.bill_count }}</td>
+    <td class="r">{{ x.lifetime_spend|inr }}</td>
+    <td class="r">{% if x.recency_days is not none %}{{ x.recency_days }}d ago<br><span class="tiny muted">{{ x.last_visit|d }}</span>{% else %}—{% endif %}</td>
+    <td class="r">{% if x.usual_interval %}~{{ '%g'|format(x.usual_interval) }}d{% else %}—{% endif %}</td>
+    <td class="r">{{ ratio(x.overdue_ratio) }}</td>
+    <td class="r">{% if x.actionable %}<b>{{ x.priority_score }}</b>{% else %}<span class="muted">—</span>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="empty">No customers match. Try clearing filters.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% if pages>1 %}<div class="pager">{% for p in range(1,pages+1) %}<a class="btn sm {{ 'primary' if p==page_n }}" href="?q={{ q|urlencode }}&segment={{ segment }}&sort={{ sort }}&page_n={{ p }}">{{ p }}</a>{% endfor %}</div>{% endif %}
+{% endblock %}

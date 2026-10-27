@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}Add bill{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Add bill</h1><div class="sub">Enter a bill the billing software already issued. Duplicate bill IDs are rejected so nothing is counted twice.</div></div></div>
+{{ error_box(errors) }}
+<form method="post" class="card" style="max-width:720px">
+  <div class="field"><label for="customer_q">Customer (search name or phone)</label>
+    <input id="customer_q" name="customer_q" list="custs" type="text" value="{{ form.customer_q or '' }}" autocomplete="off" placeholder="Start typing a name or number">
+    <datalist id="custs">{% for o in options %}<option value="{{ o }}">{% endfor %}</datalist></div>
+  <details {{ 'open' if form.new_name or form.new_phone else '' }} style="margin-bottom:14px"><summary class="small" style="cursor:pointer;font-weight:600">New customer instead…</summary>
+    <div class="row" style="margin-top:10px">
+      <div class="field"><label for="new_name">Name</label><input id="new_name" name="new_name" type="text" value="{{ form.new_name or '' }}"></div>
+      <div class="field"><label for="new_phone">Mobile</label><input id="new_phone" name="new_phone" type="tel" value="{{ form.new_phone or '' }}"><div class="hint">Created with consent = Unknown.</div></div>
+    </div></details>
+  <label class="check" style="margin-bottom:14px"><input type="checkbox" name="no_phone" value="1" {{ 'checked' if form.no_phone }}><span>No phone available — save to the unmatched review list (never campaign-eligible)</span></label>
+  <div class="row">
+    <div class="field"><label for="when">Date &amp; time *</label><input id="when" name="when" type="datetime-local" required value="{{ form.when }}"></div>
+    <div class="field"><label for="amount">Net amount (₹) *</label><input id="amount" name="amount" type="text" inputmode="decimal" required value="{{ form.amount or '' }}" placeholder="2450"><div class="hint">Use a negative number for a return/refund.</div></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="bill_id">External bill / invoice ID</label><input id="bill_id" name="bill_id" type="text" value="{{ form.bill_id or '' }}"><div class="hint">Strongly recommended — it prevents duplicates.</div></div>
+    <div class="field"><label for="category">Category</label><input id="category" name="category" type="text" value="{{ form.category or '' }}" placeholder="Shirts, Jeans…"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="items">Items (optional)</label><input id="items" name="items" type="text" value="{{ form.items or '' }}"></div>
+    <div class="field"><label for="source">Source</label><select id="source" name="source"><option value="manual" {{ 'selected' if form.source=='manual' }}>Manual entry</option><option value="pos_entry" {{ 'selected' if form.source=='pos_entry' }}>Copied from billing software</option></select></div>
+  </div>
+  <div class="actions"><button class="btn primary" type="submit">Save bill</button><a class="btn" href="/customers">Cancel</a></div>
+</form>
+{% endblock %}

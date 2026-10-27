@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}Settings{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Settings</h1><div class="sub">Rules are explainable and editable. Changes recalculate every customer immediately.</div></div></div>
+{{ error_box(errors) }}
+<div class="grid g21" style="align-items:start">
+<form method="post" class="card">
+  <h2>Shop &amp; purchase cycle</h2>
+  <div class="row">
+    <div class="field"><label for="shop_name">Shop name</label><input id="shop_name" name="shop_name" type="text" value="{{ settings.shop_name }}"></div>
+    <div class="field"><label for="business_type">Business type</label><select id="business_type" name="business_type">{% for k,v in baselines.items() %}<option value="{{ k }}" {{ 'selected' if settings.business_type==k }}>{{ k|title }} (~{{ v }} days)</option>{% endfor %}</select></div>
+    <div class="field"><label for="baseline_days">Baseline visit cycle (days)</label><input id="baseline_days" name="baseline_days" type="number" min="1" value="{{ settings.baseline_days }}"><div class="hint">Blended into estimates for customers with only 2 visits.</div></div>
+  </div>
+  <h2 style="margin-top:6px">Status thresholds <span class="muted small">(× customer's own usual interval)</span></h2>
+  <div class="row">
+    <div class="field"><label for="due_soon_ratio">Due soon from</label><input id="due_soon_ratio" name="due_soon_ratio" type="number" step="0.05" value="{{ settings.due_soon_ratio }}"></div>
+    <div class="field"><label for="overdue_ratio">Overdue from</label><input id="overdue_ratio" name="overdue_ratio" type="number" step="0.05" value="{{ settings.overdue_ratio }}"></div>
+    <div class="field"><label for="high_priority_ratio">High priority from</label><input id="high_priority_ratio" name="high_priority_ratio" type="number" step="0.05" value="{{ settings.high_priority_ratio }}"></div>
+    <div class="field"><label for="inactive_ratio">Inactive / lapsed from</label><input id="inactive_ratio" name="inactive_ratio" type="number" step="0.05" value="{{ settings.inactive_ratio }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="inactive_days">Also lapsed after (days, if already overdue)</label><input id="inactive_days" name="inactive_days" type="number" value="{{ settings.inactive_days }}"></div>
+    <div class="field"><label for="decline_factor">Declining if latest gap ≥ × earlier gap</label><input id="decline_factor" name="decline_factor" type="number" step="0.1" value="{{ settings.decline_factor }}"></div>
+    <div class="field"><label for="vip_min_spend">VIP lifetime spend (₹)</label><input id="vip_min_spend" name="vip_min_spend" type="number" value="{{ settings.vip_min_spend }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="second_visit_window_days">Second-visit window (days)</label><input id="second_visit_window_days" name="second_visit_window_days" type="number" value="{{ settings.second_visit_window_days }}"></div>
+    <div class="field"><label for="one_time_lapse_days">One-time buyer lapsed after (days)</label><input id="one_time_lapse_days" name="one_time_lapse_days" type="number" value="{{ settings.one_time_lapse_days }}"></div>
+  </div>
+  <h2 style="margin-top:6px">Campaign rules &amp; cost assumptions</h2>
+  <div class="row">
+    <div class="field"><label for="cooldown_days">Contact cooldown (days)</label><input id="cooldown_days" name="cooldown_days" type="number" value="{{ settings.cooldown_days }}"><div class="hint">Simulated runs count too, so the demo behaves like live.</div></div>
+    <div class="field"><label for="monthly_budget_cap">Monthly budget cap (₹, 0 = none)</label><input id="monthly_budget_cap" name="monthly_budget_cap" type="number" step="0.01" value="{{ settings.monthly_budget_cap }}"></div>
+    <div class="field"><label for="attribution_days">Attribution window (days)</label><input id="attribution_days" name="attribution_days" type="number" value="{{ settings.attribution_days }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="message_rate_inr">Rate per marketing message (₹)</label><input id="message_rate_inr" name="message_rate_inr" type="number" step="0.01" value="{{ settings.message_rate_inr }}"></div>
+    <div class="field"><label for="markup_inr">Provider markup per message (₹)</label><input id="markup_inr" name="markup_inr" type="number" step="0.01" value="{{ settings.markup_inr }}"></div>
+    <div class="field"><label for="gst_percent">GST %</label><input id="gst_percent" name="gst_percent" type="number" step="0.01" value="{{ settings.gst_percent }}"></div>
+    <div class="field"><label for="rate_date">Rate-card date</label><input id="rate_date" name="rate_date" type="text" value="{{ settings.rate_date }}" placeholder="e.g. 2026-10-01"></div>
+  </div>
+  <div class="banner info"><span class="dot"></span>The default ₹1.20 is a planning assumption, <b>not a verified tariff</b>. Check the current Meta / provider rate card before any live campaign.</div>
+  <button class="btn primary" type="submit">Save settings</button>
+</form>
+
+<div>
+  <section class="card"><h2>WhatsApp connection</h2>
+    {% if live_ready.ready %}<div class="banner ok"><span class="dot"></span>Live sender configured (server-side). Live sends still need an approved template and your confirmation.</div>
+    {% else %}<div class="banner sim"><span class="dot"></span>Simulation only. Live disabled — missing: {{ live_ready.missing|join(', ') }}.</div>{% endif %}
+    <div class="small muted">Credentials are read from <code>.env</code> on the server (see <code>.env.example</code>). They are never shown or editable here, and never sent to the browser.</div></section>
+  <section class="card"><h2>Data source</h2>
+    <div class="small"><b>{{ data_source }}</b>{% if data_updated %} · updated {{ data_updated|dt }}{% endif %}</div>
+    <div class="small muted" style="margin-top:6px">Demo records are fictional and can never be live-send recipients.</div>
+    <form method="post" action="/settings/reset-demo" style="margin-top:12px" onsubmit="return confirm('Replace ALL data (including anything you added) with the demo dataset?')">
+      <label for="confirm">Reset demo data — type <b>RESET</b></label>
+      <div class="actions"><input id="confirm" name="confirm" type="text" autocomplete="off" style="max-width:130px"><button class="btn danger sm" type="submit">Reset</button></div>
+      <div class="tiny muted" style="margin-top:6px">Deletes all customers, bills, campaigns and settings, then re-seeds 60 customers / ~313 bills.</div></form></section>
+  <section class="card"><h2>What is real vs simulated</h2>
+    <ul class="small" style="margin:0 0 0 18px;padding:0">
+      <li><b>Implemented:</b> customers, bills, cadence &amp; segments, campaigns, CSV import, local scheduling.</li>
+      <li><b>Simulated:</b> WhatsApp sending (default).</li>
+      <li><b>Needs client info:</b> live Meta credentials + approved template; real billing-software connection.</li></ul></section>
+</div></div>
+{% endblock %}

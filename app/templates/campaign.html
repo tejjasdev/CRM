@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import msg_chip %}
+{% block title %}{{ camp.name }}{% endblock %}
+{% block body %}
+<div class="top"><div><h1>{{ camp.name }}</h1>
+  <div class="sub"><span class="chip {{ 'warn' if camp.mode=='SIMULATION' else 'info' }}">{{ 'Simulation' if camp.mode=='SIMULATION' else 'Live (Meta)' }}</span>
+  <span class="chip {{ {'DONE':'ok','DONE_WITH_ERRORS':'bad','SCHEDULED':'info','RUNNING':'warn','CANCELLED':''}[camp.status] }}">{{ camp.status|replace('_',' ')|title }}</span>
+  · {{ SEG_LABEL.get(camp.segment, camp.segment) }} · created {{ camp.created_at|dt }}</div></div>
+  <div class="actions">
+    {% if camp.status=='SCHEDULED' %}<form method="post" action="/campaigns/{{ camp.id }}/run-now"><button class="btn sm primary">Run now</button></form>
+    <form method="post" action="/campaigns/{{ camp.id }}/cancel"><button class="btn sm">Cancel</button></form>{% endif %}
+    <a class="btn" href="/campaigns">← Campaigns</a></div></div>
+{% if camp.mode=='SIMULATION' %}<div class="banner sim"><span class="dot"></span><span><b>Simulation.</b> These messages were rendered and recorded but <b>never sent</b>; status SIMULATED is not “sent” or “delivered”.</span></div>{% endif %}
+{% if camp.status=='SCHEDULED' %}<div class="banner info"><span class="dot"></span>Scheduled for {{ camp.scheduled_at|dt }}. Runs only while this app is running.</div>{% endif %}
+<div class="kpis">
+  <div class="kpi"><div class="l">Recipients</div><div class="v">{{ recips|length }}</div></div>
+  <div class="kpi"><div class="l">Estimated cost</div><div class="v">{{ camp.est_cost|inr2 }}</div><div class="s">{{ camp.rate|inr2 }}/msg + {{ camp.gst_percent|round|int }}% GST (planning)</div></div>
+  <div class="kpi"><div class="l">Offer</div><div class="v" style="font-size:1.05rem">{{ camp.offer or '—' }}</div><div class="s">Code {{ camp.offer_code or '—' }}{% if camp.expiry %} · till {{ camp.expiry|d }}{% endif %}</div></div>
+  <div class="kpi"><div class="l">Observed returns*</div><div class="v">{{ attr.returns }}</div><div class="s">{{ attr.sales|inr }} bought within {{ camp.attribution_days }}d after</div></div>
+</div>
+<div class="small" style="margin-bottom:12px">{% for s,n in counts.items() %}{{ msg_chip(s) }} <b>{{ n }}</b>&nbsp; {% endfor %}</div>
+{% if attr.customers %}<section class="card"><h2>Observed return after campaign</h2>
+  <div class="small muted" style="margin-bottom:6px">Window {{ attr.window_start|d }} → {{ attr.window_end|d }}{{ ' (still open)' if attr.window_open }}. These customers bought again after being contacted. This does not prove the campaign caused it.</div>
+  <table class="tbl"><tbody>{% for c in attr.customers %}<tr><td><a href="/customers/{{ c.id }}">{{ c.name }}</a></td><td class="r">{{ c.bills }} bill{{ '' if c.bills==1 else 's' }}</td><td class="r">{{ c.sales|inr }}</td></tr>{% endfor %}</tbody></table></section>{% endif %}
+<section class="card" style="margin-top:16px"><h2>Per-recipient history</h2>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Customer</th><th>Status</th><th>Rendered message</th><th>Provider ID / error</th><th>Updated</th></tr></thead><tbody>
+  {% for r in recips %}<tr><td><a href="/customers/{{ r.customer_id }}">{{ r.name }}</a><div class="tiny muted">{{ r.phone|phone }}</div></td><td>{{ msg_chip(r.status) }}</td>
+    <td class="small" style="max-width:420px">{{ r.rendered_text }}</td>
+    <td class="small">{{ r.provider_message_id or '' }}{% if r.error %}<span style="color:var(--bad)">{{ r.error }}</span>{% endif %}</td><td class="small nowrap">{{ r.updated_at|dt }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<p class="tiny muted" style="margin-top:10px">*Observed returns are purchases made after the campaign — not proof the campaign caused them.</p>
+{% endblock %}

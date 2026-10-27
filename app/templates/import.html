@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}Import bills{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Import bills</h1><div class="sub">Upload a CSV exported from your billing software. The billing software itself is never touched.</div></div>
+  <a class="btn" href="/import/sample.csv">Download sample CSV</a></div>
+{{ error_box(errors) }}
+
+{% if result %}
+<div class="banner ok"><span class="dot"></span><b>Import finished.</b> {{ result.inserted }} bills added · {{ result.new_customers }} new customers (consent Unknown) · {{ result.matched }} matched to existing · {{ result.duplicates }} duplicates skipped · {{ result.unmatched }} need review · {{ result.invalid }} invalid · {{ result.possible_dups }} possible duplicates flagged.</div>
+{% if result.errors %}<div class="card"><h2>Rows that were not imported</h2><ul class="small">{% for e in result.errors[:30] %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% endif %}
+
+{% if preview %}
+<form method="post" action="/import/commit" class="card">
+  <input type="hidden" name="file_hash" value="{{ file_hash }}"><input type="hidden" name="filename" value="{{ filename }}">
+  <h2>1 · Map columns <span class="muted small">— {{ filename }}</span></h2>
+  <div class="row">{% for key,label,req in fields %}
+    <div class="field"><label for="map_{{ key }}">{{ label }}{{ ' *' if req }}</label>
+      <select id="map_{{ key }}" name="map_{{ key }}"><option value="">{{ '— choose —' if req else '— none —' }}</option>
+      {% for h in headers %}<option value="{{ h }}" {{ 'selected' if mapping.get(key)==h }}>{{ h }}</option>{% endfor %}</select></div>{% endfor %}</div>
+  <h2 style="margin-top:6px">2 · Preview <span class="muted small">(nothing is saved yet)</span></h2>
+  <div class="kpis" style="margin-bottom:10px">
+    <div class="kpi"><div class="l">Will add</div><div class="v">{{ preview.inserted }}</div></div>
+    <div class="kpi"><div class="l">New customers</div><div class="v">{{ preview.new_customers }}</div></div>
+    <div class="kpi"><div class="l">Duplicates</div><div class="v">{{ preview.duplicates }}</div></div>
+    <div class="kpi"><div class="l">Need review</div><div class="v">{{ preview.unmatched }}</div></div>
+    <div class="kpi"><div class="l">Invalid</div><div class="v">{{ preview.invalid }}</div></div>
+  </div>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Line</th><th>Result</th><th>Phone</th><th>Date</th><th class="r">Amount</th><th>Bill ID</th><th>Note</th></tr></thead><tbody>
+  {% for r in preview.preview %}<tr><td>{{ r.line }}</td>
+    <td><span class="chip {{ {'insert':'ok','matched':'ok','new_customer':'accent','unmatched':'warn','duplicate':'','invalid':'bad'}[r.verdict] }}">{{ r.verdict|replace('_',' ') }}</span></td>
+    <td>{{ r.phone_norm }}</td><td>{{ r.date_parsed or r.date }}</td><td class="r">{{ r.amount_parsed|inr if r.amount_parsed is not none else r.amount }}</td><td>{{ r.bill_id or '—' }}</td><td class="small muted">{{ r.note }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="tiny muted">Showing first {{ preview.preview|length }} of {{ preview.total }} rows. Dates read as day/month/year when ambiguous. New customers start with consent = Unknown.</div>
+  <div class="actions" style="margin-top:12px"><button class="btn" name="action" value="preview" type="submit">Refresh preview</button>
+    <button class="btn primary" name="action" value="commit" type="submit">Import {{ preview.inserted }} bills</button></div>
+</form>
+{% else %}
+<form method="post" action="/import/preview" enctype="multipart/form-data" class="card" style="max-width:640px">
+  <h2>Upload CSV</h2>
+  <div class="field"><label for="file">CSV file</label><input id="file" name="file" type="file" accept=".csv,text/csv" required>
+    <div class="hint">Needs at least a phone number, a date and a net amount per row. Bill/invoice ID is optional but makes re-imports safe (the same bill is never counted twice). Excel (.xlsx): save as CSV first.</div></div>
+  <button class="btn primary" type="submit">Upload &amp; preview</button>
+</form>
+{% endif %}
+
+{% if unmatched %}
+<section class="card" style="margin-top:16px"><h2>Unmatched bills — need a customer ({{ unmatched|length }})</h2>
+  <div class="small muted" style="margin-bottom:8px">These have no valid phone, so they are excluded from customer metrics and campaigns until assigned.</div>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Bill</th><th class="r">Amount</th><th>Raw phone / name</th><th>Assign to (mobile + name)</th></tr></thead><tbody>
+  {% for t in unmatched %}<tr><td>{{ t.txn_date|dt }}</td><td>{{ t.bill_id or '—' }}</td><td class="r">{{ t.amount|inr }}</td><td class="small muted">{{ t.raw_phone or '—' }} {{ t.raw_name or '' }}</td>
+    <td><form method="post" action="/import/assign/{{ t.id }}" class="actions"><input name="phone" type="tel" placeholder="Mobile" style="width:140px" required aria-label="Mobile"><input name="name" type="text" placeholder="Name (if new)" style="width:140px" aria-label="Name"><button class="btn sm" type="submit">Assign</button></form></td></tr>{% endfor %}
+  </tbody></table></div></section>
+{% endif %}
+{% if dups %}
+<section class="card" style="margin-top:16px"><h2>Possible duplicates to review ({{ dups|length }})</h2>
+  <div class="small muted" style="margin-bottom:8px">Same customer, date and amount but no bill ID to prove it. They are counted; check against your billing software.</div>
+  <table class="tbl"><tbody>{% for t in dups %}<tr><td><a href="/customers/{{ t.customer_id }}">{{ t.name }}</a></td><td>{{ t.txn_date|dt }}</td><td class="r">{{ t.amount|inr }}</td></tr>{% endfor %}</tbody></table></section>
+{% endif %}
+
+<section class="card" style="margin-top:16px"><h2>Import history</h2>
+  <div class="scroll"><table class="tbl"><thead><tr><th>When</th><th>File</th><th class="r">Rows</th><th class="r">Added</th><th class="r">New cust.</th><th class="r">Dupes</th><th class="r">Review</th><th class="r">Invalid</th></tr></thead><tbody>
+  {% for h in history %}<tr><td>{{ h.created_at|dt }}</td><td>{{ h.filename }}</td><td class="r">{{ h.total_rows }}</td><td class="r">{{ h.inserted }}</td><td class="r">{{ h.new_customers }}</td><td class="r">{{ h.duplicates }}</td><td class="r">{{ h.unmatched }}</td><td class="r">{{ h.invalid }}</td></tr>
+  {% else %}<tr><td colspan="8" class="empty">No imports yet.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

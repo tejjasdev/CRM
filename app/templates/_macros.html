@@ -1,0 +1,19 @@
+{% macro status_chip(status, label=None) -%}
+{%- set cls = {'ON_TRACK':'ok','DUE_SOON':'warn','OVERDUE':'warn','HIGH_PRIORITY':'bad','INACTIVE':'info','ONE_TIME':'accent','NO_HISTORY':''}[status] -%}
+<span class="chip {{ cls }}">{{ label or STATUS_LABEL[status] }}</span>
+{%- endmacro %}
+
+{% macro consent_chip(c) -%}
+<span class="chip {{ {'Yes':'ok','No':'bad','Unknown':'warn'}[c] }}" title="Marketing consent">{{ 'Consent: ' ~ c }}</span>
+{%- endmacro %}
+
+{% macro msg_chip(st) -%}
+{%- set cls = {'SIMULATED':'warn','QUEUED':'','SUBMITTED':'info','DELIVERED':'ok','READ':'ok','FAILED':'bad','UNKNOWN':'bad'}[st] -%}
+<span class="chip {{ cls }}">{{ st }}</span>
+{%- endmacro %}
+
+{% macro error_box(list) -%}
+{% if list %}<div class="errors" role="alert"><b>Please fix:</b><ul>{% for e in list %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{%- endmacro %}
+
+{% macro ratio(r) -%}{% if r is none %}—{% else %}{{ '%.2f'|format(r) }}x{% endif %}{%- endmacro %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_macros.html" import msg_chip %}
+{% block title %}Campaigns{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Campaigns</h1><div class="sub">Offers sent to the right customers, with cost shown first and results tracked after.</div></div>
+  <a class="btn primary" href="/campaigns/new">New campaign</a></div>
+<div class="banner sim"><span class="dot"></span><span><b>Simulation mode.</b> No WhatsApp messages are sent from this prototype. Live sending needs Meta credentials, an approved template and your explicit confirmation.</span></div>
+<div class="card scroll"><table class="tbl"><thead><tr><th>Campaign</th><th>Mode</th><th>Status</th><th class="r">Recipients</th><th class="r">Est. cost</th><th>When</th><th class="r">Observed returns*</th></tr></thead><tbody>
+{% for i in info %}{% set c = i.c %}<tr>
+  <td><a href="/campaigns/{{ c.id }}"><b>{{ c.name }}</b></a><div class="small muted">{{ SEG_LABEL.get(c.segment, c.segment) }} · {{ c.offer or '' }}</div></td>
+  <td><span class="chip {{ 'warn' if c.mode=='SIMULATION' else 'info' }}">{{ 'Simulation' if c.mode=='SIMULATION' else 'Live (Meta)' }}</span></td>
+  <td><span class="chip {{ {'DONE':'ok','DONE_WITH_ERRORS':'bad','SCHEDULED':'info','RUNNING':'warn','CANCELLED':''}[c.status] }}">{{ c.status|replace('_',' ')|title }}</span></td>
+  <td class="r">{{ c.est_recipients }}</td><td class="r">{{ c.est_cost|inr2 }}</td>
+  <td class="small">{{ (c.dispatched_at or c.scheduled_at or c.created_at)|dt }}</td>
+  <td class="r">{{ i.attr.returns }} · {{ i.attr.sales|inr }}</td></tr>
+{% else %}<tr><td colspan="7" class="empty">No campaigns yet.</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="tiny muted" style="margin-top:10px">*Observed returns = recipients who bought within {{ settings.attribution_days }} days after dispatch. This shows what happened after the campaign — not proof it caused the purchase. Estimated cost is a planning figure; verify the current Meta/provider rate before live use. Planned this month: {{ month_spend|inr2 }}{% if settings.monthly_budget_cap|float>0 %} of {{ settings.monthly_budget_cap|float|inr }} cap{% endif %}.</p>
+{% endblock %}

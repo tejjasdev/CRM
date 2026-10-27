@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_chip, consent_chip, msg_chip, ratio %}
+{% block title %}{{ cu.name }}{% endblock %}
+{% block body %}
+<div class="top">
+  <div><h1>{{ cu.name }} {% if cu.vip %}<span class="chip accent" style="vertical-align:middle">VIP</span>{% endif %}</h1>
+    <div class="sub">{{ cu.phone|phone }}{% if cu.email %} · {{ cu.email }}{% endif %}{% if cu.is_demo %} · <span class="chip warn">Demo contact</span>{% endif %} · {{ consent_chip(cu.consent) }}</div></div>
+  <div class="actions"><a class="btn primary" href="/transactions/new?customer={{ cu.id }}">Add bill</a><a class="btn" href="/customers">← All customers</a></div>
+</div>
+
+<div class="card" style="border-left:5px solid {{ {'ON_TRACK':'var(--ok)','DUE_SOON':'var(--warn)','OVERDUE':'var(--warn)','HIGH_PRIORITY':'var(--bad)','INACTIVE':'var(--info)'}.get(cu.status,'var(--line)') }}">
+  <div class="top" style="margin-bottom:6px"><div>{{ status_chip(cu.status) }} <span class="chip">{{ cu.confidence }}</span>{% if cu.declining %} <span class="chip warn">Declining frequency</span>{% endif %}</div>
+    {% if cu.actionable %}<div><span class="muted small">Priority score</span> <b style="font-size:1.3rem">{{ cu.priority_score }}</b>/100</div>{% endif %}</div>
+  <div style="font-size:1.02rem">{{ cu.reason }}</div>
+  {% if cu.actionable %}<div class="tiny muted" style="margin-top:6px">Score = overdue {{ cu.priority_factors.overdue }} + value {{ cu.priority_factors.value }} + frequency {{ cu.priority_factors.frequency }} + declining {{ cu.priority_factors.declining }}</div>{% endif %}
+  {% if cu.exclusions %}<div class="banner err" style="margin:10px 0 0"><span class="dot"></span>Excluded from campaigns: {{ cu.exclusions|join(' · ') }}</div>{% endif %}
+</div>
+
+<div class="kpis" style="margin-top:16px">
+  <div class="kpi"><div class="l">Lifetime spend</div><div class="v">{{ cu.lifetime_spend|inr }}</div><div class="s">net of {{ (-cu.return_total)|inr }} returns</div></div>
+  <div class="kpi"><div class="l">Visits · bills</div><div class="v">{{ cu.visit_count }} · {{ cu.bill_count }}</div><div class="s">visits = distinct dates</div></div>
+  <div class="kpi"><div class="l">Average bill</div><div class="v">{{ cu.avg_bill|inr }}</div></div>
+  <div class="kpi"><div class="l">Days since last visit</div><div class="v">{{ cu.recency_days if cu.recency_days is not none else '—' }}</div><div class="s">{{ cu.last_visit|d }}</div></div>
+  <div class="kpi"><div class="l">Usual interval</div><div class="v">{% if cu.usual_interval %}~{{ '%g'|format(cu.usual_interval) }}d{% else %}—{% endif %}</div><div class="s">{{ 'median of recent gaps' if cu.visit_count>2 else ('blended with shop baseline' if cu.visit_count==2 else 'needs 2+ visits') }}</div></div>
+  <div class="kpi {{ 'hot' if cu.overdue_ratio and cu.overdue_ratio>=1.5 }}"><div class="l">Overdue ratio</div><div class="v">{{ ratio(cu.overdue_ratio) }}</div><div class="s">{% if cu.days_overdue is not none %}{{ (cu.days_overdue|abs)|round|int }} days {{ 'past' if cu.days_overdue>0 else 'before' }} usual{% else %}—{% endif %}</div></div>
+</div>
+
+<div class="grid g2">
+  <section class="card"><h2>Visit rhythm</h2>
+    {% if gap_chart %}
+      <div class="gap" role="img" aria-label="Days between visits, with current gap">
+        <div class="line" style="bottom:calc({{ gap_chart.usual_h }}% * 0.86)"><span>usual ~{{ '%g'|format(cu.usual_interval) }}d</span></div>
+        {% for g in gap_chart.gaps %}<div class="g"><span>{{ g.v }}</span><i style="height:{{ g.h*0.86 }}%"></i></div>{% endfor %}
+        <div class="g now"><span>{{ gap_chart.now.v }}</span><i style="height:{{ gap_chart.now.h*0.86 }}%"></i></div>
+      </div>
+      <div class="tiny muted">Blue = days between past visits (oldest → newest). Red = current gap since last visit.</div>
+    {% else %}<div class="empty">Not enough visits yet — a personal rhythm needs at least two distinct visit dates.</div>{% endif %}
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="l">Spend 30d</div><div class="v">{{ cu.spend_30|inr }}</div></div>
+      <div class="stat"><div class="l">Spend 90d</div><div class="v">{{ cu.spend_90|inr }}</div></div>
+      <div class="stat"><div class="l">Spend 365d</div><div class="v">{{ cu.spend_365|inr }}</div></div>
+      <div class="stat"><div class="l">First visit</div><div class="v">{{ cu.first_visit|d }}</div></div>
+    </div>
+  </section>
+  <section class="card"><h2>Profile &amp; consent</h2>
+    <form method="post" action="/customers/{{ cu.id }}/consent" class="actions" style="margin-bottom:10px">
+      <label for="consent" style="margin:0">Marketing consent</label>
+      <select id="consent" name="consent" style="width:auto">{% for c in ['Yes','No','Unknown'] %}<option {{ 'selected' if cu.consent==c }}>{{ c }}</option>{% endfor %}</select>
+      <button class="btn sm" type="submit">Update</button></form>
+    <div class="small"><b>Segments:</b>
+      {% for key,label,rule in SEGMENTS if cu.segments[key] and key!='all' %}<a class="chip" href="/customers?segment={{ key }}">{{ label }}</a> {% endfor %}</div>
+    {% if cu.tags %}<div class="small" style="margin-top:8px"><b>Tags:</b> {{ cu.tags }}</div>{% endif %}
+    {% if cu.notes %}<div class="small muted" style="margin-top:8px">{{ cu.notes }}</div>{% endif %}
+    <h3 style="margin-top:14px">Spend by month</h3>
+    <table class="tbl"><tbody>{% for m,v in months %}<tr><td>{{ m }}</td><td class="r">{{ v.bills }} bill{{ '' if v.bills==1 else 's' }}</td><td class="r">{{ v.spend|inr }}</td></tr>{% else %}<tr><td class="muted">No transactions.</td></tr>{% endfor %}</tbody></table>
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px"><h2>Transactions</h2>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Bill ID</th><th>Category / items</th><th>Source</th><th class="r">Net amount</th></tr></thead><tbody>
+  {% for t in txns %}<tr><td class="nowrap">{{ t.txn_date|dt }}</td><td>{{ t.bill_id or '—' }}{% if t.possible_dup %} <span class="chip warn">Possible duplicate</span>{% endif %}</td>
+    <td>{{ t.category or '' }}{% if t.items %}<div class="tiny muted">{{ t.items }}</div>{% endif %}</td>
+    <td class="small muted">{{ t.source }}{% if t.filename %} · {{ t.filename }}{% endif %}</td>
+    <td class="r" style="{{ 'color:var(--bad)' if t.amount<0 }}">{{ t.amount|inr }}{% if t.amount<0 %} <span class="chip bad">Return</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No transactions yet. <a href="/transactions/new?customer={{ cu.id }}">Add the first bill</a>.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="card" style="margin-top:16px"><h2>Offer &amp; campaign history</h2>
+  {% for h in hist %}<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+    <a href="/campaigns/{{ h.campaign_id }}"><b>{{ h.cname }}</b></a> {{ msg_chip(h.status) }} <span class="chip {{ 'warn' if h.mode=='SIMULATION' else 'info' }}">{{ 'Simulation' if h.mode=='SIMULATION' else 'Live' }}</span>
+    <span class="small muted"> · {{ (h.dispatched_at or h.ccreated)|dt }}</span>
+    <div class="small muted" style="margin-top:3px">“{{ h.rendered_text }}”</div>{% if h.error %}<div class="small" style="color:var(--bad)">{{ h.error }}</div>{% endif %}</div>
+  {% else %}<div class="empty">No offers sent to this customer.</div>{% endfor %}
+</section>
+{% endblock %}

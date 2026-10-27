@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Segments{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Segments</h1><div class="sub">Every rule is visible. A customer can sit in several segments; campaigns never message the same person twice.</div></div></div>
+<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">
+{% for s in info %}
+  <div class="card seg-card">
+    <div class="small muted">{{ s.label }}</div>
+    <div class="n">{{ s.n }}</div>
+    <div class="small">{{ s.rule }}</div>
+    <div class="small muted">Messageable now: <b>{{ s.eligible }}</b> · est. {{ s.cost|inr2 }} incl. tax</div>
+    <div class="actions" style="margin-top:6px"><a class="btn sm" href="/customers?segment={{ s.key }}">View customers</a>
+      <a class="btn sm primary" href="/campaigns/new?segment={{ s.key }}">Create offer</a></div>
+  </div>
+{% endfor %}
+</div>
+<p class="tiny muted" style="margin-top:14px">“Messageable” = consent Yes, valid phone, outside the cooldown. Thresholds are editable in Settings. Cost uses the configurable planning rate, not a verified tariff.</p>
+{% endblock %}

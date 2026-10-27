@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ReturnLoop{% endblock %} · ReturnLoop</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M9 16a7 7 0 1 1 2.3 5.2' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+{% from "_macros.html" import error_box %}
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12a7 7 0 1 1 2.3 5.2"/><path d="M5 18v-4h4"/></svg></span>ReturnLoop</div>
+    <nav class="nav" aria-label="Main">
+      <a href="/" class="{{ 'on' if active=='dashboard' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</a>
+      <a href="/customers" class="{{ 'on' if active=='customers' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-6M22 20c0-3-2-5-5-5.5"/></svg>Customers</a>
+      <a href="/transactions/new" class="{{ 'on' if active=='transactions' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Add bill</a>
+      <a href="/segments" class="{{ 'on' if active=='segments' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 6"/></svg>Segments</a>
+      <a href="/campaigns" class="{{ 'on' if active=='campaigns' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8z"/></svg>Campaigns</a>
+      <a href="/import" class="{{ 'on' if active=='import' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>Import bills</a>
+      <a href="/settings" class="{{ 'on' if active=='settings' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</a>
+    </nav>
+    <div class="foot">
+      <div><b>{{ settings.shop_name }}</b></div>
+      <div>Sender: {{ 'Live ready' if live_ready.ready else 'Simulation only' }}</div>
+      <div>Prototype · works beside your billing software</div>
+    </div>
+  </aside>
+  <main class="main">
+    {% if flash %}<div class="banner {{ 'err' if flash_kind=='err' else 'ok' }}" role="status"><span class="dot"></span>{{ flash }}</div>{% endif %}
+    {% block body %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

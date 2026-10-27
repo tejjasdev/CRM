@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}Add customer{% endblock %}
+{% block body %}
+<div class="top"><div><h1>Add customer</h1><div class="sub">Saved to the local database and visible everywhere immediately.</div></div></div>
+{{ error_box(errors) }}
+<form method="post" class="card" style="max-width:640px">
+  <div class="row">
+    <div class="field"><label for="name">Name *</label><input id="name" name="name" type="text" required value="{{ form.name or '' }}" autocomplete="off"></div>
+    <div class="field"><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" required value="{{ form.phone or '' }}" placeholder="98100 12345"><div class="hint">10-digit Indian mobile; +91 or 0 prefix is fine.</div></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="email">Email (optional)</label><input id="email" name="email" type="email" value="{{ form.email or '' }}"></div>
+    <div class="field"><label for="tags">Tags (optional)</label><input id="tags" name="tags" type="text" value="{{ form.tags or '' }}" placeholder="wedding, size-M"></div>
+  </div>
+  <div class="field"><label for="consent">Marketing consent (WhatsApp)</label>
+    <select id="consent" name="consent">{% for c in ['Unknown','Yes','No'] %}<option {{ 'selected' if form.consent==c }}>{{ c }}</option>{% endfor %}</select>
+    <div class="hint">A phone number is not consent. Only <b>Yes</b> customers can receive campaigns. Default is Unknown.</div></div>
+  <div class="field"><label for="notes">Notes (optional)</label><textarea id="notes" name="notes" style="min-height:70px">{{ form.notes or '' }}</textarea></div>
+  <div class="actions"><button class="btn primary" type="submit">Save customer</button><a class="btn" href="/customers">Cancel</a></div>
+</form>
+{% endblock %}
